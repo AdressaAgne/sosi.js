@@ -147,13 +147,6 @@ var SOSI = window.SOSI || {};
         return key;
     }
 
-    function parseSubdict(lines) {
-        return _.reduce(parseTree(lines, 3), function (subdict, value, key) {
-            subdict[getLongname(key)] = setDataType(key, value[0]);
-            return subdict;
-        }, {});
-    }
-
     ns.util = {
 
         parseTree: parseTree,
@@ -162,22 +155,28 @@ var SOSI = window.SOSI || {};
 
         getLongname: getLongname,
 
-        parseFromLevel2: function (data) {
-            return _.reduce(parseTree(data, 2), function (dict, lines, key) {
-                if (lines.length) {
-                    if (lines[0][0] === ".") {
-                        dict[getLongname(key)] = parseSubdict(lines);
-                    } else if (lines.length > 1) {
-                        dict[getLongname(key)] = _.map(lines, function (value) {
-                            return setDataType(key, value);
-                        });
-                    } else {
-                        dict[getLongname(key)] = setDataType(key, lines[0]);
-                    }
-                }
-                return dict;
-            }, {});
-        },
+        parseFromLevel2: function (data, level = 2) {
+			return _.reduce(
+				parseTree(data, level),
+				function (dict, lines, key) {
+					if (lines.length) {
+						// Check if the first line indicates a sublevel (starts with '.')
+						if (lines[0][0] === '.') {
+							// Recursively parse deeper sublevels
+                            dict[getLongname(key)] = ns.util.parseFromLevel2(lines, level + 1);
+						} else if (lines.length > 1) {
+							dict[getLongname(key)] = _.map(lines, function (value) {
+								return setDataType(key, value);
+							});
+						} else {
+							dict[getLongname(key)] = setDataType(key, lines[0]);
+						}
+					}
+					return dict;
+				},
+				{}
+			);
+		},
 
         specialAttributes: (function () {
             if (!!SOSI.types) {
